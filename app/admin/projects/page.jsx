@@ -3,13 +3,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -21,8 +14,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { useRouter } from 'next/navigation'
 
 export default function AdminProjects() {
+  const router = useRouter()
   const [projects, setProjects] = useState([])
   const [selectedProject, setSelectedProject] = useState(null)
   const [formData, setFormData] = useState({
@@ -62,6 +57,7 @@ export default function AdminProjects() {
         return
       }
     } else {
+      console.log(formData)
       const { error } = await supabase
         .from('projects')
         .insert(formData)
@@ -99,39 +95,9 @@ export default function AdminProjects() {
       </div>
 
       <div className="mb-6">
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button>Add New Project</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{selectedProject ? 'Edit Project' : 'Add New Project'}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="name">Project Name</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full">
-                {selectedProject ? 'Update' : 'Create'} Project
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => router.push('/admin/projects/create')}>
+          Add New Project
+        </Button>
       </div>
 
       <div className="rounded-lg border">
@@ -153,13 +119,7 @@ export default function AdminProjects() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        setSelectedProject(project)
-                        setFormData({
-                          name: project.name,
-                          description: project.description,
-                        })
-                      }}
+                      onClick={() => router.push(`/admin/projects/${project.id}/edit`)}
                     >
                       Edit
                     </Button>

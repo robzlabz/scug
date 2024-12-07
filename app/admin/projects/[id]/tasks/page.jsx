@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, use } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import {
@@ -20,9 +20,30 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { format } from 'date-fns'
+import { format, isAfter, parseISO } from 'date-fns'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
+import { cn } from "@/lib/utils"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 export default function ProjectTasks({ params }) {
+  const resolvedParams = use(params)
   const [tasks, setTasks] = useState([])
   const [project, setProject] = useState(null)
   const [selectedTask, setSelectedTask] = useState(null)
@@ -30,17 +51,22 @@ export default function ProjectTasks({ params }) {
     task_name: '',
     date: format(new Date(), 'yyyy-MM-dd'),
   })
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [taskToDelete, setTaskToDelete] = useState(null)
+  const itemsPerPage = 10
 
   useEffect(() => {
     fetchProject()
     fetchTasks()
-  }, [])
+  }, [currentPage])
 
   const fetchProject = async () => {
     const { data, error } = await supabase
       .from('projects')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', resolvedParams.id)
       .single()
 
     if (error) {
@@ -52,11 +78,21 @@ export default function ProjectTasks({ params }) {
   }
 
   const fetchTasks = async () => {
+    // First, get the total count
+    const { count } = await supabase
+      .from('project_tasks')
+      .select('*', { count: 'exact', head: true })
+      .eq('project_id', resolvedParams.id)
+
+    setTotalPages(Math.ceil(count / itemsPerPage))
+
+    // Then fetch the paginated data
     const { data, error } = await supabase
       .from('project_tasks')
       .select('*, members:filled_by_member_id(*)')
-      .eq('project_id', params.id)
-      .order('date', { ascending: true })
+      .eq('project_id', resolvedParams.id)
+      .order('date', { ascending: false })
+      .range((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage - 1)
 
     if (error) {
       console.error('Error fetching tasks:', error)
@@ -71,7 +107,7 @@ export default function ProjectTasks({ params }) {
     
     const taskData = {
       ...formData,
-      project_id: params.id,
+      project_id: resolvedParams.id,
       filled: false,
       filled_by_member_id: null
     }
@@ -99,6 +135,7 @@ export default function ProjectTasks({ params }) {
 
     setFormData({ task_name: '', date: format(new Date(), 'yyyy-MM-dd') })
     setSelectedTask(null)
+    setIsDialogOpen(false)
     fetchTasks()
   }
 
@@ -113,7 +150,30 @@ export default function ProjectTasks({ params }) {
       return
     }
 
+    setTaskToDelete(null)
     fetchTasks()
+  }
+
+  const handleEdit = (task) => {
+    setSelectedTask(task)
+    setFormData({
+      task_name: task.task_name,
+      date: task.date,
+    })
+    setIsDialogOpen(true)
+  }
+
+  const handleDialogClose = () => {
+    setIsDialogOpen(false)
+    setSelectedTask(null)
+    setFormData({ task_name: '', date: format(new Date(), 'yyyy-MM-dd') })
+  }
+
+  const isOverdue = (date) => {
+    const taskDate = parseISO(date)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return isAfter(today, taskDate)
   }
 
   if (!project) return <div>Loading...</div>
@@ -125,9 +185,14 @@ export default function ProjectTasks({ params }) {
           <h1 className="text-2xl font-bold">{project.name}</h1>
           <p className="text-gray-600">{project.description}</p>
         </div>
-        <Dialog>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button>Add New Task</Button>
+            <Button onClick={() => {
+              setSelectedTask(null)
+              setFormData({ task_name: '', date: format(new Date(), 'yyyy-MM-dd') })
+            }}>
+              Add New Task
+            </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -153,57 +218,121 @@ export default function ProjectTasks({ params }) {
                   required
                 />
               </div>
-              <Button type="submit">
-                {selectedTask ? 'Update' : 'Create'} Task
-              </Button>
+              <div className="flex justify-end gap-4">
+                <Button type="button" variant="outline" onClick={handleDialogClose}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  {selectedTask ? 'Update' : 'Create'} Task
+                </Button>
+              </div>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Date</TableHead>
-            <TableHead>Task Name</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Filled By</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {tasks.map((task) => (
-            <TableRow key={task.id}>
-              <TableCell>{format(new Date(task.date), 'dd MMM yyyy')}</TableCell>
-              <TableCell>{task.task_name}</TableCell>
-              <TableCell>{task.filled ? 'Completed' : 'Pending'}</TableCell>
-              <TableCell>{task.members?.name || '-'}</TableCell>
-              <TableCell>
-                <div className="space-x-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setSelectedTask(task)
-                      setFormData({
-                        task_name: task.task_name,
-                        date: task.date,
-                      })
-                    }}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={() => handleDelete(task.id)}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </TableCell>
+      <div className="rounded-lg border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Date</TableHead>
+              <TableHead>Task Name</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Filled By</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {tasks.map((task) => (
+              <TableRow 
+                key={task.id}
+                className={cn(
+                  isOverdue(task.date) && !task.filled && "bg-red-50"
+                )}
+              >
+                <TableCell className={cn(
+                  isOverdue(task.date) && !task.filled && "text-red-600 font-medium"
+                )}>
+                  {format(new Date(task.date), 'dd MMM yyyy')}
+                </TableCell>
+                <TableCell>{task.task_name}</TableCell>
+                <TableCell>{task.filled ? 'Completed' : 'Pending'}</TableCell>
+                <TableCell>{task.members?.name || '-'}</TableCell>
+                <TableCell>
+                  <div className="space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(task)}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setTaskToDelete(task)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      <div className="mt-4 flex justify-center">
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              />
+            </PaginationItem>
+            
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <PaginationItem key={page}>
+                <PaginationLink
+                  onClick={() => setCurrentPage(page)}
+                  isActive={currentPage === page}
+                >
+                  {page}
+                </PaginationLink>
+              </PaginationItem>
+            ))}
+
+            <PaginationItem>
+              <PaginationNext 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      </div>
+
+      <AlertDialog open={!!taskToDelete} onOpenChange={() => setTaskToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the task
+              "{taskToDelete?.task_name}".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleDelete(taskToDelete?.id)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

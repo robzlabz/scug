@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
+import { supabase } from '@/lib/supabase'
 import {
   LayoutGrid,
   Users,
@@ -47,17 +48,51 @@ const menuItems = [
 
 export default function AdminLayout({ children }) {
   const [collapsed, setCollapsed] = useState(false)
+  const [memberData, setMemberData] = useState(null)
   const pathname = usePathname()
-  const { user } = useAuth()
+  const router = useRouter()
+  const { user, loading } = useAuth()
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/')
+      return
+    }
+
+    if (user?.id) {
+      fetchMemberData()
+    }
+  }, [user, loading, router])
+
+  const fetchMemberData = async () => {
+    const { data, error } = await supabase
+      .from('members')
+      .select('*')
+      .eq('user_id', user.id)
+      .single()
+
+    if (error) {
+      console.error('Error fetching member data:', error)
+      return
+    }
+
+    // If not an admin, redirect to home
+    if (data?.role !== 'admin') {
+      router.push('/')
+      return
+    }
+
+    setMemberData(data)
+  }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
   }
 
-  const getInitials = (email) => {
-    return email
-      .split('@')[0]
-      .split('.')
+  const getInitials = (name) => {
+    if (!name) return 'U'
+    return name
+      .split(' ')
       .map(part => part[0])
       .join('')
       .toUpperCase()
@@ -99,14 +134,16 @@ export default function AdminLayout({ children }) {
           <div className="flex items-center">
             <Avatar className={cn('h-8 w-8', collapsed ? 'mx-auto' : 'mr-3')}>
               <AvatarImage src={user?.user_metadata?.avatar_url} />
-              <AvatarFallback>{user?.email ? getInitials(user.email) : 'U'}</AvatarFallback>
+              <AvatarFallback>{memberData?.name ? getInitials(memberData.name) : 'U'}</AvatarFallback>
             </Avatar>
             {!collapsed && (
               <div className="flex flex-col">
                 <span className="text-sm font-medium text-white">
-                  {user?.email?.split('@')[0]}
+                  {memberData?.name || 'Loading...'}
                 </span>
-                <span className="text-xs text-gray-400">Administrator</span>
+                <span className="text-xs text-gray-400">
+                  {memberData?.email || user?.email || ''}
+                </span>
               </div>
             )}
           </div>
