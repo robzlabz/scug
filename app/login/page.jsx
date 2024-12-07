@@ -24,7 +24,7 @@ export default function LoginPage() {
 
       if (error) throw error
 
-      router.push('/dashboard')
+      router.push('/admin/dashboard')
     } catch (error) {
       setError(error.message)
     } finally {

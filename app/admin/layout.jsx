@@ -87,6 +87,9 @@ export default function AdminLayout({ children }) {
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
+
+    // redirect to home page
+    router.push('/')
   }
 
   const getInitials = (name) => {
