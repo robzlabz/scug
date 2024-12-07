@@ -23,8 +23,8 @@ const features = [
 
 export default function MissionSection() {
   return (
-    <section className="py-20 bg-background">
-      <div className="container mx-auto px-4">
+    <section className="py-20 bg-gradient-to-br from-primary-50 to-gold-50 relative overflow-hidden">
+      <div className="container mx-auto px-4 relative z-10">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -32,8 +32,10 @@ export default function MissionSection() {
           transition={{ duration: 0.5 }}
           className="text-center mb-16"
         >
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Misi Kami</h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 bg-gradient-to-r from-primary-700 to-gold-600 bg-clip-text text-transparent">
+            Misi Kami
+          </h2>
+          <p className="text-lg text-primary-700 max-w-2xl mx-auto">
             Membangun tradisi berbagi dan menghargai jasa para guru melalui 
             program sedekah makanan mingguan.
           </p>
@@ -47,14 +49,24 @@ export default function MissionSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.2 }}
-              className="p-6 rounded-lg bg-card"
+              className="relative group"
             >
-              <feature.icon className="w-12 h-12 text-primary mb-4" />
-              <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-              <p className="text-muted-foreground">{feature.description}</p>
+              <div className="p-6 rounded-xl bg-white/50 backdrop-blur-sm border border-gold-200/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                <div className="w-12 h-12 mb-4 rounded-lg bg-gradient-to-br from-primary-100 to-gold-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                  <feature.icon className="w-6 h-6 text-primary-700" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2 text-primary-800">{feature.title}</h3>
+                <p className="text-primary-600">{feature.description}</p>
+              </div>
             </motion.div>
           ))}
         </div>
+      </div>
+
+      {/* Morphism background effects */}
+      <div className="absolute inset-0 -z-0">
+        <div className="absolute top-1/4 right-0 w-64 h-64 bg-gradient-to-bl from-primary-200/30 to-gold-200/30 rounded-full filter blur-3xl" />
+        <div className="absolute bottom-1/4 left-0 w-64 h-64 bg-gradient-to-tr from-gold-200/30 to-primary-200/30 rounded-full filter blur-3xl" />
       </div>
     </section>
   );
