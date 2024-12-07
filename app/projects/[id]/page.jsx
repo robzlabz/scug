@@ -14,6 +14,8 @@ import {
   Wallet
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useRouter } from 'next/router'
+import Link from 'next/link'
 
 // Dummy data
 const projectData = {
@@ -43,7 +45,7 @@ const projectData = {
   quote: "Setiap bantuan kecil membawa perubahan besar bagi mereka yang membutuhkan."
 }
 
-export default function ProjectDetail() {
+export default function ProjectDetail({id}) {
   const [currentSlide, setCurrentSlide] = useState(0)
 
   const nextSlide = () => {
@@ -162,9 +164,11 @@ export default function ProjectDetail() {
                       </p>
                     </div>
                     {task.status === "available" && (
-                      <Button size="sm" variant="secondary">
-                        <Gift className="w-4 h-4 mr-2" />
-                        Penuhi Task
+                      <Button size="sm" asChild>
+                        <Link href={`/projects/1/confirm`} className="flex items-center">
+                          <Gift className="w-4 h-4 mr-2" />
+                          <span>Penuhi Task</span>
+                        </Link>
                       </Button>
                     )}
                   </div>
@@ -173,9 +177,14 @@ export default function ProjectDetail() {
             </div>
 
             <div className="mt-6">
-              <Button className="w-full" size="lg">
+              <Button className="w-full mb-3" size="lg" variant="secondary">
                 <Wallet className="w-5 h-5 mr-2" />
                 Tambah Dana
+              </Button>
+              <Button className="w-full" size="lg" asChild>
+                <Link href={`/projects/${id}/tasks`}>
+                  Pilih Task
+                </Link>
               </Button>
             </div>
           </Card>
@@ -186,12 +195,16 @@ export default function ProjectDetail() {
       <div className="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-background border-t">
         <div className="flex gap-4">
           <Button className="flex-1" variant="secondary">
-            <Gift className="w-4 h-4 mr-2" />
-            Penuhi Task
-          </Button>
-          <Button className="flex-1">
             <Wallet className="w-4 h-4 mr-2" />
             Tambah Dana
+          </Button>
+          <Button className="flex-1">
+            <Link href={`/projects/1/tasks`}>
+            <div className="flex-1">
+            <Gift className="w-4 h-4 mr-2" />
+            Penuhi Task
+            </div>
+            </Link>
           </Button>
         </div>
       </div>
