@@ -55,10 +55,12 @@ export default function EditProject({ params }) {
 
   const fetchProjectImage = async () => {
     const { data, error } = await supabase
-      .from('project_images')
+      .from('project_image')
       .select('url')
       .eq('project_id', resolvedParams.id)
       .single()
+
+      console.log('data from project image', data, error)
 
     if (error) {
       if (error.code !== 'PGRST116') { // Not found error code
@@ -90,6 +92,7 @@ export default function EditProject({ params }) {
       
       // Validate file type
       if (!file.type.startsWith('image/')) {
+        alert('Only image files are allowed.')
         throw new Error('Only image files are allowed.')
       }
 
@@ -124,14 +127,22 @@ export default function EditProject({ params }) {
           .remove([`project-covers/${oldPath}`])
       }
 
+      // delete from project_images table where project_id = resolvedParams.id
+      const { error: deleteError } = await supabase
+        .from('project_image')
+        .delete()
+        .eq('project_id', resolvedParams.id)
+
+      if (deleteError) {
+        throw deleteError
+      }
+
       // Update or insert into project_images table
       const { error: dbError } = await supabase
-        .from('project_images')
-        .upsert({
+        .from('project_image')
+        .insert({
           project_id: resolvedParams.id,
           url: publicUrl
-        }, {
-          onConflict: 'project_id'
         })
 
       if (dbError) {
@@ -202,6 +213,8 @@ export default function EditProject({ params }) {
                   alt="Project cover"
                   fill
                   className="object-cover"
+                  placeholder='empty'
+                  priority={false}
                 />
               </div>
             )}
