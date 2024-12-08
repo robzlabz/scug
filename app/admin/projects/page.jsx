@@ -132,13 +132,6 @@ export default function AdminProjects() {
                     >
                       Delete
                     </Button>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => window.location.href = `/admin/projects/${project.id}/tasks`}
-                    >
-                      Tasks
-                    </Button>
                   </div>
                 </TableCell>
               </TableRow>

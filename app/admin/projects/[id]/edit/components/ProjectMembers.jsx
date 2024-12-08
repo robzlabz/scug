@@ -17,13 +17,12 @@ export default function ProjectMembers({ projectId }) {
   const [isOpen, setIsOpen] = useState(false)
   const [newMember, setNewMember] = useState({
     name: '',
-    role: '',
-    email: ''
+    phone: ''
   })
 
   const fetchMembers = async () => {
     const { data, error } = await supabase
-      .from('project_members')
+      .from('members')
       .select('*')
       .eq('project_id', projectId)
 
