@@ -96,7 +96,7 @@ export default function TaskConfirmation({ params }) {
 
       if (updateError) throw updateError
       // Redirect to success page
-      router.push(`/projects/${projectId}`)
+      router.push(`/projects/thankyou`)
     } catch (error) {
       console.error('Error submitting task:', error)
     } finally {
