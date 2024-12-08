@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -11,54 +11,95 @@ import {
   ChevronLeft,
   ChevronRight,
   Gift,
-  Wallet
+  Wallet,
+  ImageIcon
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useRouter } from 'next/router'
 import Link from 'next/link'
 import Image from 'next/image'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
-// Dummy data
-const projectData = {
-  id: 1,
-  title: "Bantuan untuk Guru di Pelosok",
-  date: "20 December 2024",
-  location: "Desa Sukamaju, Kab. Bandung",
-  description: "Program bantuan untuk guru-guru yang mengajar di daerah pelosok dengan kondisi sekolah yang membutuhkan perhatian khusus.",
-  images: [
-    "/dummy1.jpg",
-    "/dummy2.jpg",
-    "/dummy3.jpg"
-  ],
-  participants: [
-    { name: "Ahmad Sudirman", phone: "08123456789" },
-    { name: "Siti Aminah", phone: "08234567890" },
-  ],
-  tasks: [
-    { id: 1, title: "Donasi Buku Pelajaran", status: "available", count: 5 },
-    { id: 2, title: "Alat Tulis", status: "available", count: 10 },
-    { id: 3, title: "Seragam Guru", status: "completed", count: 2 },
-  ],
-  reports: [
-    { date: "2024-12-05", content: "Survei lokasi telah dilakukan" },
-    { date: "2024-12-06", content: "Koordinasi dengan kepala sekolah" },
-  ],
-  quote: "Setiap bantuan kecil membawa perubahan besar bagi mereka yang membutuhkan."
-}
+// Empty cover SVG
+const EmptyCoverSVG = () => (
+  <div className="w-full h-full flex items-center justify-center bg-gray-100">
+    <ImageIcon className="w-12 h-12 text-gray-400" />
+  </div>
+)
 
-export default function ProjectDetail({id}) {
+export default function ProjectDetail({ params }) {
+  const [project, setProject] = useState(null)
+  const [sliderImages, setSliderImages] = useState([])
   const [currentSlide, setCurrentSlide] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const supabase = createClientComponentClient()
+
+  useEffect(() => {
+    const fetchProjectData = async () => {
+      try {
+        // Fetch project details
+        const { data: projectData, error: projectError } = await supabase
+          .from('projects')
+          .select(`
+            *,
+            project_tasks (*),
+            project_reports (
+              *,
+              project_image (*)
+            )
+          `)
+          .eq('id', params.id)
+          .single()
+
+        if (projectError) throw projectError
+
+        // Fetch slider images
+        const { data: sliderImagesData, error: sliderError } = await supabase
+          .from('project_slider_images')
+          .select('*')
+          .eq('project_id', params.id)
+          .order('created_at', { ascending: true })
+
+        if (sliderError) throw sliderError
+
+        // Process reports with their images
+        const processedReports = projectData.project_reports?.map(report => ({
+          ...report,
+          images: report.project_image
+        }))
+
+        setProject({
+          ...projectData,
+          reports: processedReports
+        })
+        setSliderImages(sliderImagesData || [])
+      } catch (error) {
+        console.error('Error fetching project:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (params.id) {
+      fetchProjectData()
+    }
+  }, [params.id, supabase])
 
   const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % projectData.images.length)
+    if (!sliderImages?.length) return
+    setCurrentSlide((prev) => (prev + 1) % sliderImages.length)
   }
 
   const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + projectData.images.length) % projectData.images.length)
+    if (!sliderImages?.length) return
+    setCurrentSlide((prev) => (prev - 1 + sliderImages.length) % sliderImages.length)
   }
 
-  const maskPhone = (phone) => {
-    return phone.replace(/(\d{4})\d{4}(\d{3})/, '$1****$2')
+  if (loading) {
+    return <div>Loading...</div>
+  }
+
+  if (!project) {
+    return <div>Project not found</div>
   }
 
   return (
@@ -68,75 +109,100 @@ export default function ProjectDetail({id}) {
         <div className="lg:w-3/5">
           {/* Image Slider */}
           <div className="relative aspect-video mb-8 bg-gray-100 rounded-lg overflow-hidden">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Image
-                src={projectData.images[currentSlide]}
-                alt={`Slide ${currentSlide + 1}`}
-                className="object-cover w-full h-full"
-              />
-            </div>
-            <button
-              onClick={prevSlide}
-              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 p-2 rounded-full"
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </button>
-            <button
-              onClick={nextSlide}
-              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 p-2 rounded-full"
-            >
-              <ChevronRight className="w-6 h-6" />
-            </button>
+            {sliderImages.length > 0 ? (
+              <>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Image
+                    src={sliderImages[currentSlide].image_url}
+                    alt={`Slide ${currentSlide + 1}`}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <button
+                  onClick={prevSlide}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 p-2 rounded-full"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+                <button
+                  onClick={nextSlide}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 p-2 rounded-full"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+              </>
+            ) : (
+              <EmptyCoverSVG />
+            )}
           </div>
 
           {/* Project Info */}
           <div className="space-y-6">
             <div className="flex items-center gap-4 text-muted-foreground">
               <CalendarDays className="w-5 h-5" />
-              <span>{projectData.date}</span>
+              <span>{new Date(project.date).toLocaleDateString()}</span>
               <Users className="w-5 h-5 ml-4" />
-              <span>{projectData.location}</span>
-            </div>
-
-            <div className="prose max-w-none">
-              <h1 className="text-3xl font-bold mb-4">{projectData.title}</h1>
-              <p>{projectData.description}</p>
+              <span>{project.location}</span>
             </div>
 
             {/* Tabs */}
             <Tabs defaultValue="reports" className="mt-8">
               <TabsList>
+                <TabsTrigger value="info">Project Info</TabsTrigger>
                 <TabsTrigger value="reports">Laporan Kegiatan</TabsTrigger>
-                <TabsTrigger value="participants">Partisipan</TabsTrigger>
                 <TabsTrigger value="quote">Kata Hari Ini</TabsTrigger>
               </TabsList>
 
               <TabsContent value="reports">
                 <Card className="p-6">
-                  {projectData.reports.map((report, idx) => (
-                    <div key={idx} className="mb-4 last:mb-0">
-                      <div className="font-semibold">{report.date}</div>
-                      <div className="text-muted-foreground">{report.content}</div>
+                  {project.reports?.map((report) => (
+                    <div key={report.id} className="mb-6 last:mb-0">
+                      <div className="mb-2">
+                        <h3 className="font-semibold text-lg">{report.title}</h3>
+                        <div className="text-sm text-muted-foreground">
+                          {new Date(report.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <p className="mb-4">{report.content}</p>
+                      {report.images?.length > 0 && (
+                        <div className="grid grid-cols-2 gap-2">
+                          {report.images.map((image) => (
+                            <div key={image.id} className="relative aspect-video">
+                              <Image
+                                src={image.url}
+                                alt={report.title}
+                                fill
+                                className="object-cover rounded-lg"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </Card>
               </TabsContent>
 
-              <TabsContent value="participants">
+              <TabsContent value="info">
                 <Card className="p-6">
-                  {projectData.participants.map((participant, idx) => (
-                    <div key={idx} className="mb-4 last:mb-0">
-                      <div className="font-semibold">{participant.name}</div>
-                      <div className="text-muted-foreground">{maskPhone(participant.phone)}</div>
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="font-semibold mb-2">About Project</h3>
+                      <p className="text-muted-foreground">{project.description}</p>
                     </div>
-                  ))}
+                    <div>
+                      <h3 className="font-semibold mb-2">Location</h3>
+                      <p className="text-muted-foreground">{project.location}</p>
+                    </div>
+                  </div>
                 </Card>
               </TabsContent>
 
               <TabsContent value="quote">
                 <Card className="p-6">
                   <blockquote className="italic text-lg">
-                    &quot;{projectData.quote}&quot;
+                    &quot;{project.quote || 'Setiap bantuan kecil membawa perubahan besar bagi mereka yang membutuhkan.'}&quot;
                   </blockquote>
                 </Card>
               </TabsContent>
@@ -149,29 +215,21 @@ export default function ProjectDetail({id}) {
           <Card className="p-6">
             <h2 className="text-xl font-semibold mb-4">Daftar Task</h2>
             <div className="space-y-4">
-              {projectData.tasks.map((task) => (
+              {project.project_tasks?.map((task) => (
                 <div
                   key={task.id}
                   className={cn(
                     "p-4 rounded-lg border",
-                    task.status === "completed" ? "bg-muted" : "bg-card"
+                    task.filled ? "bg-muted" : "bg-card"
                   )}
                 >
                   <div className="flex justify-between items-center">
                     <div>
-                      <h3 className="font-medium">{task.title}</h3>
+                      <h3 className="font-medium">{task.task_name}</h3>
                       <p className="text-sm text-muted-foreground">
-                        Dibutuhkan: {task.count} item
+                        Dibutuhkan: {task.quantity} {task.unit}
                       </p>
                     </div>
-                    {task.status === "available" && (
-                      <Button size="sm" asChild>
-                        <Link href={`/projects/1/confirm`} className="flex items-center">
-                          <Gift className="w-4 h-4 mr-2" />
-                          <span>Penuhi Task</span>
-                        </Link>
-                      </Button>
-                    )}
                   </div>
                 </div>
               ))}
@@ -183,7 +241,7 @@ export default function ProjectDetail({id}) {
                 Tambah Dana
               </Button>
               <Button className="w-full" size="lg" asChild>
-                <Link href={`/projects/${id}/tasks`}>
+                <Link href={`/projects/${params.id}/tasks`}>
                   Pilih Task
                 </Link>
               </Button>
@@ -199,12 +257,12 @@ export default function ProjectDetail({id}) {
             <Wallet className="w-4 h-4 mr-2" />
             Tambah Dana
           </Button>
-          <Button className="flex-1">
-            <Link href={`/projects/1/tasks`}>
-            <div className="flex-1">
-            <Gift className="w-4 h-4 mr-2" />
-            Penuhi Task
-            </div>
+          <Button className="flex-1" asChild>
+            <Link href={`/projects/${params.id}/tasks`}>
+              <div className="flex items-center justify-center">
+                <Gift className="w-4 h-4 mr-2" />
+                Penuhi Task
+              </div>
             </Link>
           </Button>
         </div>
