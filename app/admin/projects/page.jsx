@@ -34,6 +34,7 @@ export default function AdminProjects() {
       .from('projects')
       .select('*')
       .order('created_at', { ascending: false })
+      .is('deleted_at', null)
 
     if (error) {
       console.error('Error fetching projects:', error)
@@ -74,13 +75,16 @@ export default function AdminProjects() {
   }
 
   const handleDelete = async (id) => {
+    if (!confirm('Are you sure you want to delete this project?')) return
+
     const { error } = await supabase
       .from('projects')
-      .delete()
+      .update({deleted_at: new Date().toISOString()})
       .eq('id', id)
 
     if (error) {
       console.error('Error deleting project:', error)
+      alert('Failed to delete project. Please try again.')
       return
     }
 
@@ -106,7 +110,6 @@ export default function AdminProjects() {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Date</TableHead>
-              <TableHead>Description</TableHead>
               <TableHead className="w-[200px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -115,7 +118,6 @@ export default function AdminProjects() {
               <TableRow key={project.id}>
                 <TableCell className="font-medium">{project.name}</TableCell>
                 <TableCell>{project.date}</TableCell>
-                <TableCell>{project.description}</TableCell>
                 <TableCell>
                   <div className="flex space-x-2">
                     <Button

@@ -31,7 +31,6 @@ export default function EditProject({params}) {
             <TabsTrigger value="slider">Slider</TabsTrigger>
             <TabsTrigger value="tasks">Tasks</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
-            <TabsTrigger value="members">Members</TabsTrigger>
           </TabsList>
 
           <TabsContent value="details" className="space-y-6">
@@ -52,10 +51,6 @@ export default function EditProject({params}) {
 
           <TabsContent value="reports">
             <ProjectReports projectId={resolvedParams.id}/>
-          </TabsContent>
-
-          <TabsContent value="members">
-            <ProjectMembers projectId={resolvedParams.id} />
           </TabsContent>
         </Tabs>
 

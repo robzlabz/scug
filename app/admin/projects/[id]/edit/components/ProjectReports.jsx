@@ -293,7 +293,7 @@ export default function ProjectReports({ projectId }) {
 
         {reports.length === 0 && (
           <div className="text-center py-8 text-gray-500">
-            No reports yet. Click "Create Report" to add one.
+            No reports yet. Click <strong>Create Report</strong> to add one.
           </div>
         )}
       </div>

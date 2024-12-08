@@ -1,135 +1,207 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
+import { use } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { 
+  CalendarDays, 
+  Gift,
+  CheckCircle2,
+  ArrowLeft
+} from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { Checkbox } from '@/components/ui/checkbox'
-import { use } from 'react'
-import { supabase } from '@/lib/supabase'
+import { motion } from 'framer-motion'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import Link from 'next/link'
 
-export default function ConfirmTask({params}) {
-  //get taskid from params
-  const taskId = use(params).taskid
+export default function TaskConfirmation({ params }) {
   const projectId = use(params).id
-
+  const taskId = use(params).taskid
   const router = useRouter()
+  const [task, setTask] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
-    phone: ''
+    phone: '',
+    notes: ''
   })
-  const [isChecked, setIsChecked] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [task, setTask] = useState(null)
-
-  const handleSubmit = async (e) => {
-    // cek apakah member sudah terdaftar
-    var { data, error } = await supabase.from("members")
-      .select("*")
-      .eq("phone", formData.phone)
-      .single()
-
-    if (error) throw error
-
-    // jika belum terdaftar, buat member baru
-    if (!data) {
-      var { data } = await supabase.from("members")
-        .insert({
-          name: formData.name,
-          phone: formData.phone,
-          created_at: new Date().toISOString(),
-        })
-        .single()
-    }
-
-    const { error: taskError } = await supabase.from("project_tasks")
-      .update({
-        filled: true,
-        filled_by_member_id: data.id,
-      })
-      .eq("id", taskId)
-      .eq("project_id", projectId)
-      .single()
-
-    if (taskError) throw taskError
-
-    e.preventDefault()
-    router.push(`/projects/thankyou`)
-  }
+  const supabase = createClientComponentClient()
 
   useEffect(() => {
     const fetchTask = async () => {
-      const {data, error} = await supabase.from("project_tasks")
-        .select("*")
-        .eq("id", taskId)
-        .eq("project_id", projectId)
-        .single()
+      try {
+        const { data: taskData, error: taskError } = await supabase
+          .from('project_tasks')
+          .select(`
+            *,
+            projects (
+              name,
+              date
+            )
+          `)
+          .eq('id', taskId)
+          .single()
 
-        if (error) throw error
+        if (taskError) throw taskError
 
-        if (data) {
-          setTask(data)
-        }
-
+        setTask({
+          id: taskData.id,
+          project_id: taskData.project_id,
+          title: taskData.task_name,
+          date: taskData.projects.date,
+          description: taskData.description,
+          quantity: taskData.quantity,
+          unit: taskData.unit,
+          projectName: taskData.projects.name
+        })
+      } catch (error) {
+        console.error('Error fetching task:', error)
+      } finally {
         setLoading(false)
+      }
     }
+
     fetchTask()
-  }, [])
+  }, [taskId, supabase])
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setSubmitting(true)
+
+    try {
+      // update project task
+      const { error: updateError } = await supabase
+        .from('project_tasks')
+        .update({
+          filled: true,
+          filled_at: new Date().toISOString(),
+          name: formData.name,
+          phone: formData.phone,
+          notes: formData.notes
+        })
+        .eq('id', taskId)
+
+      if (updateError) throw updateError
+      // Redirect to success page
+      router.push(`/projects/${projectId}`)
+    } catch (error) {
+      console.error('Error submitting task:', error)
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-8 max-w-md">
-        <p className="text-lg text-amber-800">Loading...</p>
-      </div>
-    )
+    return <div>Loading...</div>
+  }
+
+  if (!task) {
+    return <div>Task not found</div>
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-md">
-      {task && (
-        <div className="mb-4 bg-amber-50 border-2 border-amber-200 rounded-lg p-4 shadow-md">
-          <h2 className="text-xl font-semibold mb-2 text-amber-800">Task yang Dipilih:</h2>
-          <div className="bg-white p-3 rounded-md border border-amber-300">
-            <p className="text-gray-800 font-bold text-lg">{task.task_name}</p>
-            <p className="text-gray-600 text-sm">Jumlah {task.quantity} {task.unit}</p>
+    <div className="container mx-auto px-4 py-8">
+      <Link
+        href={`/projects/${projectId}/tasks`}
+        className="inline-flex items-center text-muted-foreground hover:text-foreground mb-8"
+      >
+        <ArrowLeft className="w-4 h-4 mr-2" />
+        Kembali ke Daftar Task
+      </Link>
+
+      <div className="max-w-2xl mx-auto">
+        <h1 className="text-3xl font-bold mb-8">Konfirmasi Task</h1>
+
+        {/* Task Info Card */}
+        <Card className="p-6 mb-8 bg-primary/5">
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="text-xl font-semibold mb-2">{task.title}</h2>
+              <p className="text-muted-foreground mb-4">{task.description}</p>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="w-4 h-4" />
+                  <span>Tanggal: {new Date(task.date).toLocaleDateString()}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Gift className="w-4 h-4" />
+                  <span>Dibutuhkan: {task.quantity} {task.unit}</span>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        </Card>
 
-      <Card className="p-6">
-        <h1 className="text-2xl font-bold mb-6">Konfirmasi Data Diri</h1>
-
+        {/* Confirmation Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="name">Nama Lengkap</Label>
-            <Input
-              id="name"
-              required
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Masukkan nama lengkap Anda"
-            />
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="name">Nama Lengkap</Label>
+              <Input
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                required
+                placeholder="Masukkan nama lengkap Anda"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="phone">Nomor Telepon</Label>
+              <Input
+                id="phone"
+                name="phone"
+                value={formData.phone}
+                onChange={handleInputChange}
+                required
+                placeholder="Contoh: 08123456789"
+                type="tel"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="notes">Catatan (opsional)</Label>
+              <Textarea
+                id="notes"
+                name="notes"
+                value={formData.notes}
+                onChange={handleInputChange}
+                placeholder="Tambahkan catatan jika diperlukan"
+                rows={4}
+              />
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="phone">Nomor Handphone</Label>
-            <Input
-              id="phone"
-              required
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              placeholder="Contoh: 08123456789"
-            />
-          </div>
-
-          <Button type="submit" className="w-full">
-            Kirim Data
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={submitting}
+          >
+            {submitting ? (
+              'Memproses...'
+            ) : (
+              <>
+                <CheckCircle2 className="w-4 h-4 mr-2" />
+                Konfirmasi Task
+              </>
+            )}
           </Button>
         </form>
-      </Card>
+      </div>
     </div>
   )
 }

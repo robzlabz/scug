@@ -52,8 +52,6 @@ export default function AdminLayout({ children }) {
   const pathname = usePathname()
   const router = useRouter()
 
-  
-
   const checkUser = async () => {
     try {
       const { data: { session }, error } = await supabase.auth.getSession()

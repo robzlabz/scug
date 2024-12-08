@@ -12,12 +12,14 @@ import {
   ChevronRight,
   Gift,
   Wallet,
-  ImageIcon
+  ImageIcon,
+  CheckCircle
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import Image from 'next/image'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { use } from 'react'
 
 // Empty cover SVG
 const EmptyCoverSVG = () => (
@@ -27,6 +29,7 @@ const EmptyCoverSVG = () => (
 )
 
 export default function ProjectDetail({ params }) {
+  const projectId  = use(params).id
   const [project, setProject] = useState(null)
   const [sliderImages, setSliderImages] = useState([])
   const [currentSlide, setCurrentSlide] = useState(0)
@@ -47,7 +50,8 @@ export default function ProjectDetail({ params }) {
               project_image (*)
             )
           `)
-          .eq('id', params.id)
+          .eq('id', projectId)
+          .is('deleted_at', null)
           .single()
 
         if (projectError) throw projectError
@@ -56,7 +60,7 @@ export default function ProjectDetail({ params }) {
         const { data: sliderImagesData, error: sliderError } = await supabase
           .from('project_slider_images')
           .select('*')
-          .eq('project_id', params.id)
+          .eq('project_id', projectId)
           .order('created_at', { ascending: true })
 
         if (sliderError) throw sliderError
@@ -79,10 +83,10 @@ export default function ProjectDetail({ params }) {
       }
     }
 
-    if (params.id) {
+    if (projectId) {
       fetchProjectData()
     }
-  }, [params.id, supabase])
+  }, [projectId, supabase])
 
   const nextSlide = () => {
     if (!sliderImages?.length) return
@@ -229,19 +233,27 @@ export default function ProjectDetail({ params }) {
                       <p className="text-sm text-muted-foreground">
                         Dibutuhkan: {task.quantity} {task.unit}
                       </p>
+                      {task.filled && (
+                        <p className="text-xs text-green-600 mt-1">
+                          Diambil oleh: {task.name.charAt(0)}{'*'.repeat(task.name.length - 2)}{task.name.charAt(task.name.length - 1)}
+                        </p>
+                      )}
                     </div>
+                    {task.filled && (
+                      <CheckCircle className="w-5 h-5 text-green-500" />
+                    )}
                   </div>
                 </div>
               ))}
             </div>
 
             <div className="mt-6">
-              <Button className="w-full mb-3" size="lg" variant="secondary">
+              <Button className="w-full mb-3" size="lg" variant="secondary" onClick={() => alert('Masih dalam Pengembangan: Add Donation Form')}>
                 <Wallet className="w-5 h-5 mr-2" />
                 Tambah Dana
               </Button>
               <Button className="w-full" size="lg" asChild>
-                <Link href={`/projects/${params.id}/tasks`}>
+                <Link href={`/projects/${projectId}/tasks`}>
                   Pilih Task
                 </Link>
               </Button>
@@ -253,12 +265,12 @@ export default function ProjectDetail({ params }) {
       {/* Mobile Action Buttons */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-background border-t">
         <div className="flex gap-4">
-          <Button className="flex-1" variant="secondary">
+          <Button className="flex-1" variant="secondary" onClick={() => alert('Masih dalam Pengembangan: Add Donation Form')}>
             <Wallet className="w-4 h-4 mr-2" />
             Tambah Dana
           </Button>
           <Button className="flex-1" asChild>
-            <Link href={`/projects/${params.id}/tasks`}>
+            <Link href={`/projects/${projectId}/tasks`}>
               <div className="flex items-center justify-center">
                 <Gift className="w-4 h-4 mr-2" />
                 Penuhi Task

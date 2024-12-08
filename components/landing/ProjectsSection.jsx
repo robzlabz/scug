@@ -6,28 +6,60 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import ProjectCard from '../ProjectCard';
 
 export default function ProjectsSection() {
   const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchProjects();
   }, []);
 
   const fetchProjects = async () => {
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(3);
+    try {
+      setLoading(true)
+      const today = new Date().toISOString()
 
-    if (error) {
-      console.error('Error fetching projects:', error);
-      return;
+      // Fetch all projects with their tasks and cover images
+      const { data: projectsData, error: projectsError } = await supabase
+        .from('projects')
+        .select(`
+          *,
+          project_tasks (*),
+          project_image (*)
+        `)
+        .gte('date', today)
+        .order('date', { ascending: true })
+        .is('deleted_at', null)
+
+      if (projectsError) throw projectsError
+
+      // Process projects data
+      var processedProjects = projectsData.map(project => {
+        // Get tasks
+        var tasks = project.project_tasks || []
+        var totalTasks = tasks.length
+        var completedTasks = tasks.filter(task => task.filled).length
+
+        // Get cover image
+        var coverImage = project.project_image?.find(img => img.type === 'cover')
+
+        return {
+          ...project,
+          totalTasks,
+          completedTasks,
+          coverImage: coverImage?.url
+        }
+      })
+
+      setProjects(processedProjects)
+    } catch (error) {
+      console.error('Error fetching projects:', error)
+    } finally {
+      setLoading(false)
     }
-
-    setProjects(data || []);
-  };
+  }
 
   return (
     <section className="py-20 bg-background">
@@ -54,26 +86,7 @@ export default function ProjectsSection() {
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.2 }}
             >
-              <Link href={`/projects/${project.id}`}>
-                <Card className="h-full hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <CardTitle>{project.name}</CardTitle>
-                    <CardDescription>
-                      {new Date(project.created_at).toLocaleDateString('id-ID', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground line-clamp-3">
-                      {project.description}
-                    </p>
-                  </CardContent>
-                </Card>
-              </Link>
+              <ProjectCard project={project} key={project.id} />
             </motion.div>
           ))}
         </div>

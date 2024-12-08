@@ -39,11 +39,8 @@ export default function ProjectTasks({ projectId }) {
         quantity,
         unit,
         filled, 
-        filled_by_member_id,
-        members (
-          name,
-          phone
-        )
+        name,
+        phone
       `)
       .eq('project_id', projectId)
     
@@ -235,10 +232,10 @@ export default function ProjectTasks({ projectId }) {
               <TableCell>{task.quantity}</TableCell>
               <TableCell>{task.unit}</TableCell>
               <TableCell>
-                {task.filled_by_member_id ? (
+                {task.filled ? (
                   <div>
-                    <p>{task.members.name}</p>
-                    <p>{task.members.phone}</p>
+                    <p>{task.name}</p>
+                    <p>{task.phone}</p>
                   </div>
                 ) : (
                   <p className="text-muted-foreground">Not filled yet</p>
