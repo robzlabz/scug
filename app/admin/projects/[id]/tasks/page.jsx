@@ -57,10 +57,7 @@ export default function ProjectTasks({ params }) {
   const [taskToDelete, setTaskToDelete] = useState(null)
   const itemsPerPage = 10
 
-  useEffect(() => {
-    fetchProject()
-    fetchTasks()
-  }, [currentPage])
+  
 
   const fetchProject = async () => {
     const { data, error } = await supabase
@@ -175,6 +172,11 @@ export default function ProjectTasks({ params }) {
     today.setHours(0, 0, 0, 0)
     return isAfter(today, taskDate)
   }
+
+  useEffect(() => {
+    fetchProject()
+    fetchTasks()
+  }, [currentPage])
 
   if (!project) return <div>Loading...</div>
 
@@ -319,7 +321,7 @@ export default function ProjectTasks({ params }) {
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the task
-              "{taskToDelete?.task_name}".
+              &quot;{taskToDelete?.task_name}&quot;.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

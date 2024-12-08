@@ -52,9 +52,7 @@ export default function AdminLayout({ children }) {
   const pathname = usePathname()
   const router = useRouter()
 
-  useEffect(() => {
-    checkUser()
-  }, [])
+  
 
   const checkUser = async () => {
     try {
@@ -82,6 +80,10 @@ export default function AdminLayout({ children }) {
       router.push('/login')
     }
   }
+
+  useEffect(() => {
+    checkUser()
+  }, [])
 
   const handleLogout = async () => {
     try {

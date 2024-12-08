@@ -19,7 +19,7 @@ export default function JoinSection() {
             Mari Bergabung dalam Kebaikan
           </h2>
           <p className="text-lg text-muted-foreground mb-8">
-            "Sebaik-baik manusia adalah yang paling bermanfaat bagi manusia lain"
+            &quot;Sebaik-baik manusia adalah yang paling bermanfaat bagi manusia lain&quot;
             <br />
             <span className="text-sm italic">- HR. Ahmad, ath-Thabrani, ad-Daruqutni</span>
           </p>

@@ -91,11 +91,11 @@ export default function AdminProjects() {
     <div className="p-8">
       <div className="mb-8 space-y-4">
         <h1 className="text-2xl font-bold">Projects</h1>
-        <p className="text-gray-500">Manage your organization's projects and their tasks.</p>
+        <p className="text-gray-500">Manage your organizations projects and their tasks.</p>
       </div>
 
       <div className="mb-6">
-        <Button onClick={() => router.push('/admin/projects/create')}>
+        <Button onClick={() => router.push("/admin/projects/create")}>
           Add New Project
         </Button>
       </div>

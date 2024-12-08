@@ -16,6 +16,7 @@ import {
 import { cn } from '@/lib/utils'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
+import Image from 'next/image'
 
 // Dummy data
 const projectData = {
@@ -68,7 +69,7 @@ export default function ProjectDetail({id}) {
           {/* Image Slider */}
           <div className="relative aspect-video mb-8 bg-gray-100 rounded-lg overflow-hidden">
             <div className="absolute inset-0 flex items-center justify-center">
-              <img
+              <Image
                 src={projectData.images[currentSlide]}
                 alt={`Slide ${currentSlide + 1}`}
                 className="object-cover w-full h-full"
@@ -135,7 +136,7 @@ export default function ProjectDetail({id}) {
               <TabsContent value="quote">
                 <Card className="p-6">
                   <blockquote className="italic text-lg">
-                    "{projectData.quote}"
+                    &quot;{projectData.quote}&quot;
                   </blockquote>
                 </Card>
               </TabsContent>
