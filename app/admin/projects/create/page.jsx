@@ -18,6 +18,7 @@ export default function CreateProject() {
   const router = useRouter()
   const [formData, setFormData] = useState({
     name: '',
+    date:'',
     description: '',
   })
 
@@ -55,6 +56,17 @@ export default function CreateProject() {
             required
           />
         </div>
+        <div className="space-y-2">
+          <Label htmlFor="date">Project Date</Label>
+          <Input
+            id="date"
+            type="date"
+            value={formData.date}
+            onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+            required
+          />
+        </div>
+
         <div className="space-y-2">
           <Label>Description (Markdown)</Label>
           <MDEditor

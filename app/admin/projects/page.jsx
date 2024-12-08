@@ -105,6 +105,7 @@ export default function AdminProjects() {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
+              <TableHead>Date</TableHead>
               <TableHead>Description</TableHead>
               <TableHead className="w-[200px]">Actions</TableHead>
             </TableRow>
@@ -113,6 +114,7 @@ export default function AdminProjects() {
             {projects.map((project) => (
               <TableRow key={project.id}>
                 <TableCell className="font-medium">{project.name}</TableCell>
+                <TableCell>{project.date}</TableCell>
                 <TableCell>{project.description}</TableCell>
                 <TableCell>
                   <div className="flex space-x-2">

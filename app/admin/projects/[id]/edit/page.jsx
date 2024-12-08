@@ -1,40 +1,38 @@
 'use client'
 
-import { useEffect, useState, use } from 'react'
-import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import Image from 'next/image'
-import dynamic from 'next/dynamic'
+import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+import { use, useEffect, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import ProjectDetails from './components/ProjectDetails'
+import ProjectTasks from './components/ProjectTasks'
+import ProjectReports from './components/ProjectReports'
+import ProjectMembers from './components/ProjectMembers'
 
-// Import Markdown editor with dynamic import to avoid SSR issues
-const MDEditor = dynamic(
-  () => import('@uiw/react-md-editor').then((mod) => mod.default),
-  { ssr: false }
-);
-
-export default function EditProject({ params }) {
+export default function EditProject({params}) {
   const resolvedParams = use(params)
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    date: '',
   })
   const [coverImage, setCoverImage] = useState(null)
   const [imageUrl, setImageUrl] = useState(null)
   const [uploading, setUploading] = useState(false)
+  const [tasks, setTasks] = useState([])
 
   useEffect(() => {
     fetchProject()
     fetchProjectImage()
+    fetchTasks()
   }, [])
 
   const fetchProject = async () => {
-    const { data, error } = await supabase
+    const {data, error} = await supabase
       .from('projects')
       .select('*')
       .eq('id', resolvedParams.id)
@@ -54,16 +52,14 @@ export default function EditProject({ params }) {
   }
 
   const fetchProjectImage = async () => {
-    const { data, error } = await supabase
+    const {data, error} = await supabase
       .from('project_image')
       .select('url')
       .eq('project_id', resolvedParams.id)
       .single()
 
-      console.log('data from project image', data, error)
-
     if (error) {
-      if (error.code !== 'PGRST116') { // Not found error code
+      if (error.code !== 'PGRST116') {
         console.error('Error fetching project image:', error)
       }
       return
@@ -74,12 +70,25 @@ export default function EditProject({ params }) {
     }
   }
 
+  const fetchTasks = async () => {
+    const {data, error} = await supabase
+      .from('project_tasks')
+      .select('*')
+      .eq('project_id', resolvedParams.id)
+    
+    if (error) {
+      console.error('Error fetching tasks:', error)
+      return
+    }
+    
+    setTasks(data || [])
+  }
+
   const handleImageUpload = async (e) => {
     try {
       setUploading(true)
-      
-      // Check authentication status
-      const { data: { session } } = await supabase.auth.getSession()
+
+      const {data: {session}} = await supabase.auth.getSession()
       if (!session) {
         throw new Error('You must be logged in to upload images')
       }
@@ -89,8 +98,7 @@ export default function EditProject({ params }) {
       }
 
       const file = e.target.files[0]
-      
-      // Validate file type
+
       if (!file.type.startsWith('image/')) {
         alert('Only image files are allowed.')
         throw new Error('Only image files are allowed.')
@@ -100,8 +108,7 @@ export default function EditProject({ params }) {
       const fileName = `${uuidv4()}.${fileExt}`
       const filePath = `project-covers/${fileName}`
 
-      // Upload image to storage
-      const { error: uploadError, data } = await supabase.storage
+      const {error: uploadError} = await supabase.storage
         .from('scug')
         .upload(filePath, file, {
           contentType: file.type,
@@ -110,16 +117,13 @@ export default function EditProject({ params }) {
         })
 
       if (uploadError) {
-        console.error('Upload error details:', uploadError)
-        throw new Error(`Upload failed: ${uploadError.message}`)
+        throw uploadError
       }
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
+      const {data: {publicUrl}} = supabase.storage
         .from('scug')
         .getPublicUrl(filePath)
 
-      // Delete old image if exists
       if (imageUrl) {
         const oldPath = imageUrl.split('/').pop()
         await supabase.storage
@@ -127,8 +131,7 @@ export default function EditProject({ params }) {
           .remove([`project-covers/${oldPath}`])
       }
 
-      // delete from project_images table where project_id = resolvedParams.id
-      const { error: deleteError } = await supabase
+      const {error: deleteError} = await supabase
         .from('project_image')
         .delete()
         .eq('project_id', resolvedParams.id)
@@ -137,8 +140,7 @@ export default function EditProject({ params }) {
         throw deleteError
       }
 
-      // Update or insert into project_images table
-      const { error: dbError } = await supabase
+      const {error: dbError} = await supabase
         .from('project_image')
         .insert({
           project_id: resolvedParams.id,
@@ -159,10 +161,27 @@ export default function EditProject({ params }) {
     }
   }
 
+  const handleAddTask = async (taskName) => {
+    const {error} = await supabase
+      .from('project_tasks')
+      .insert({
+        project_id: resolvedParams.id,
+        name: taskName,
+        status: 'pending'
+      })
+
+    if (error) {
+      console.error('Error adding task:', error)
+      return
+    }
+
+    fetchTasks()
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
-    const { error } = await supabase
+
+    const {error} = await supabase
       .from('projects')
       .update(formData)
       .eq('id', resolvedParams.id)
@@ -189,59 +208,49 @@ export default function EditProject({ params }) {
     <div className="p-8 max-w-4xl mx-auto" data-color-mode="light">
       <div className="mb-8 space-y-4">
         <h1 className="text-2xl font-bold">Edit Project</h1>
-        <p className="text-gray-500">Edit your project details using markdown for the description.</p>
+        <p className="text-gray-500">Manage your project details, tasks, reports, and team members.</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="name">Project Name</Label>
-          <Input
-            id="name"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            required
-          />
-        </div>
+      <form onSubmit={handleSubmit}>
+        <Tabs defaultValue="details" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="tasks">Tasks</TabsTrigger>
+            <TabsTrigger value="reports">Reports</TabsTrigger>
+            <TabsTrigger value="members">Members</TabsTrigger>
+          </TabsList>
 
-        <div className="space-y-2">
-          <Label>Cover Image</Label>
-          <div className="space-y-4">
-            {imageUrl && (
-              <div className="relative w-full aspect-video rounded-lg overflow-hidden">
-                <Image
-                  src={imageUrl}
-                  alt="Project cover"
-                  fill
-                  className="object-cover"
-                  placeholder='empty'
-                  priority={false}
-                />
-              </div>
-            )}
-            <Input
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              disabled={uploading}
+          <TabsContent value="details" className="space-y-6">
+            <ProjectDetails
+              formData={formData}
+              setFormData={setFormData}
+              imageUrl={imageUrl}
+              handleImageUpload={handleImageUpload}
+              uploading={uploading}
             />
-            {uploading && <p className="text-sm text-gray-500">Uploading...</p>}
-          </div>
-        </div>
+          </TabsContent>
 
-        <div className="space-y-2">
-          <Label>Description (Markdown)</Label>
-          <MDEditor
-            value={formData.description}
-            onChange={(value) => setFormData({ ...formData, description: value || '' })}
-            preview="edit"
-            height={400}
-          />
-        </div>
-        <div className="flex gap-4">
-          <Button type="submit" disabled={uploading}>Update Project</Button>
-          <Button 
-            type="button" 
-            variant="outline" 
+          <TabsContent value="tasks">
+            <ProjectTasks
+              tasks={tasks}
+              onAddTask={handleAddTask}
+            />
+          </TabsContent>
+
+          <TabsContent value="reports">
+            <ProjectReports projectId={resolvedParams.id} />
+          </TabsContent>
+
+          <TabsContent value="members">
+            <ProjectMembers projectId={resolvedParams.id} />
+          </TabsContent>
+        </Tabs>
+
+        <div className="flex gap-4 mt-8">
+          <Button type="submit" disabled={uploading}>Save Changes</Button>
+          <Button
+            type="button"
+            variant="outline"
             onClick={() => router.push('/admin/projects')}
             disabled={uploading}
           >
