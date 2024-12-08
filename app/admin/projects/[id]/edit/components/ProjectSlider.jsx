@@ -1,9 +1,8 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import Image from 'next/image'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { v4 as uuidv4 } from 'uuid'
 import {
@@ -11,10 +10,13 @@ import {
   Droppable,
   Draggable
 } from '@hello-pangea/dnd'
+import { Upload, Pencil, Trash2, GripVertical } from 'lucide-react'
 
 export default function ProjectSlider({ projectId }) {
   const [images, setImages] = useState([])
   const [uploading, setUploading] = useState(false)
+  const [dragActive, setDragActive] = useState(false)
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     fetchSliderImages()
@@ -25,6 +27,7 @@ export default function ProjectSlider({ projectId }) {
       .from('project_slider_images')
       .select('*')
       .eq('project_id', projectId)
+      .eq('type', 'slider')
       .order('order_index')
 
     if (error) {
@@ -35,8 +38,33 @@ export default function ProjectSlider({ projectId }) {
     setImages(data || [])
   }
 
+  const handleDrag = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true)
+    } else if (e.type === "dragleave") {
+      setDragActive(false)
+    }
+  }
+
+  const handleDrop = async (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+
+    const files = Array.from(e.dataTransfer.files)
+    if (files.length > 0) {
+      await handleImageUpload({ target: { files } })
+    }
+  }
+
   const handleImageUpload = async (e) => {
     try {
+      if (!e.target.files || e.target.files.length === 0) {
+        return
+      }
+
       setUploading(true)
       const files = Array.from(e.target.files)
       
@@ -80,6 +108,7 @@ export default function ProjectSlider({ projectId }) {
             project_id: projectId,
             image_url: publicUrl,
             order_index: maxOrderIndex + 1,
+            type: 'slider',
             caption: ''
           })
 
@@ -95,6 +124,9 @@ export default function ProjectSlider({ projectId }) {
       alert('Error uploading images')
     } finally {
       setUploading(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     }
   }
 
@@ -128,6 +160,8 @@ export default function ProjectSlider({ projectId }) {
 
   const handleDeleteImage = async (imageId, imageUrl) => {
     try {
+      if (!confirm('Are you sure you want to delete this image?')) return
+
       // Delete from storage
       const filePath = imageUrl.split('/').pop()
       await supabase.storage
@@ -168,6 +202,10 @@ export default function ProjectSlider({ projectId }) {
     }
   }
 
+  const handleButtonClick = () => {
+    fileInputRef.current?.click()
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -177,24 +215,46 @@ export default function ProjectSlider({ projectId }) {
             Drag and drop to reorder images. Add captions to describe each image.
           </p>
         </div>
-        <div>
-          <Input
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-            disabled={uploading}
-            multiple
-            className="hidden"
-            id="slider-upload"
-          />
-          <label htmlFor="slider-upload">
-            <Button as="span" disabled={uploading}>
-              {uploading ? 'Uploading...' : 'Add Images'}
-            </Button>
-          </label>
+      </div>
+
+      {/* Upload Area */}
+      <div
+        className={`relative border-2 border-dashed rounded-lg transition-colors ${
+          dragActive ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+        }`}
+        onDragEnter={handleDrag}
+        onDragLeave={handleDrag}
+        onDragOver={handleDrag}
+        onDrop={handleDrop}
+        onClick={handleButtonClick}
+        style={{ cursor: 'pointer' }}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleImageUpload}
+          disabled={uploading}
+          multiple
+          className="hidden"
+        />
+
+        <div className="p-8 text-center">
+          <div className="flex justify-center mb-4">
+            <Upload className="w-12 h-12 text-gray-400" />
+          </div>
+          <div>
+            <p className="text-lg font-medium">
+              {uploading ? 'Uploading...' : 'Click or drag and drop to upload images'}
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              You can select multiple images
+            </p>
+          </div>
         </div>
       </div>
 
+      {/* Images List */}
       <DragDropContext onDragEnd={handleDragEnd}>
         <Droppable droppableId="slider-images">
           {(provided) => (
@@ -213,10 +273,13 @@ export default function ProjectSlider({ projectId }) {
                     <div
                       ref={provided.innerRef}
                       {...provided.draggableProps}
-                      className="flex items-start gap-4 p-4 bg-white rounded-lg border"
+                      className="flex items-start gap-4 p-4 bg-white rounded-lg border group hover:border-blue-200 transition-colors"
                     >
-                      <div {...provided.dragHandleProps} className="cursor-move">
-                        ⋮
+                      <div 
+                        {...provided.dragHandleProps}
+                        className="cursor-move flex items-center text-gray-400 hover:text-gray-600"
+                      >
+                        <GripVertical className="w-5 h-5" />
                       </div>
                       <div className="relative w-40 h-24 rounded-md overflow-hidden">
                         <Image
@@ -227,22 +290,23 @@ export default function ProjectSlider({ projectId }) {
                         />
                       </div>
                       <div className="flex-1">
-                        <Input
-                          value={image.caption}
+                        <input
+                          value={image.caption || ''}
                           onChange={(e) => handleCaptionChange(image.id, e.target.value)}
                           placeholder="Add a caption for this image..."
-                          className="mb-2"
+                          className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
-                        <p className="text-sm text-gray-500">
-                          Order: {index + 1}
+                        <p className="text-sm text-gray-500 mt-2">
+                          Position: {index + 1}
                         </p>
                       </div>
                       <Button
-                        variant="destructive"
-                        size="sm"
+                        variant="ghost"
+                        size="icon"
                         onClick={() => handleDeleteImage(image.id, image.image_url)}
+                        className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                       >
-                        Delete
+                        <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
                   )}
@@ -254,14 +318,22 @@ export default function ProjectSlider({ projectId }) {
         </Droppable>
       </DragDropContext>
 
-      {images.length === 0 && (
-        <div className="text-center py-12 border-2 border-dashed rounded-lg">
-          <p className="text-gray-500">No images in the slider yet</p>
-          <p className="text-sm text-gray-400">
-            Click "Add Images" to upload some images
-          </p>
+      {images.length === 0 && !uploading && (
+        <div className="text-center py-8 text-gray-500">
+          No images in the slider yet
         </div>
       )}
+
+      <div className="mt-4">
+        <h3 className="text-sm font-medium mb-2">Image Guidelines:</h3>
+        <ul className="text-sm text-gray-500 list-disc pl-5 space-y-1">
+          <li>Recommended size: 1920x1080 pixels (16:9 aspect ratio)</li>
+          <li>Maximum file size: 5MB per image</li>
+          <li>Supported formats: JPG, PNG, GIF, SVG</li>
+          <li>You can upload multiple images at once</li>
+          <li>Drag and drop to reorder images</li>
+        </ul>
+      </div>
     </div>
   )
 }
