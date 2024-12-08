@@ -101,7 +101,8 @@ export default function ProjectCover({ projectId }) {
         .from('project_image')
         .insert({
           project_id: projectId,
-          url: publicUrl
+          url: publicUrl,
+          type: 'cover'
         })
 
       if (dbError) {
