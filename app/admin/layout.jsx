@@ -48,48 +48,48 @@ const menuItems = [
 
 export default function AdminLayout({ children }) {
   const [collapsed, setCollapsed] = useState(false)
-  const [memberData, setMemberData] = useState(null)
+  const [userData, setUserData] = useState(null)
   const pathname = usePathname()
   const router = useRouter()
-  const { user, loading } = useAuth()
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/')
-      return
+    checkUser()
+  }, [])
+
+  const checkUser = async () => {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession()
+      
+      if (error || !session) {
+        console.log("No session found, redirecting to login")
+        router.push('/login')
+        return
+      }
+
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      
+      if (userError || !user) {
+        console.log("No user found, redirecting to login")
+        router.push('/login')
+        return
+      }
+
+      // Here you can add additional checks for admin role if needed
+      setUserData(user)
+      
+    } catch (error) {
+      console.error("Error checking auth:", error)
+      router.push('/login')
     }
-
-    if (user?.id) {
-      fetchMemberData()
-    }
-  }, [user, loading, router])
-
-  const fetchMemberData = async () => {
-    const { data, error } = await supabase
-      .from('members')
-      .select('*')
-      .eq('user_id', user.id)
-      .single()
-
-    if (error) {
-      console.error('Error fetching member data:', error)
-      return
-    }
-
-    // If not an admin, redirect to home
-    if (data?.role !== 'admin') {
-      router.push('/')
-      return
-    }
-
-    setMemberData(data)
   }
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-
-    // redirect to home page
-    router.push('/')
+    try {
+      await supabase.auth.signOut()
+      router.push('/login')
+    } catch (error) {
+      console.error("Error signing out:", error)
+    }
   }
 
   const getInitials = (name) => {
@@ -99,6 +99,12 @@ export default function AdminLayout({ children }) {
       .map(part => part[0])
       .join('')
       .toUpperCase()
+  }
+
+  if (!userData) {
+    return <div className="min-h-screen flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+    </div>
   }
 
   return (
@@ -136,16 +142,16 @@ export default function AdminLayout({ children }) {
         )}>
           <div className="flex items-center">
             <Avatar className={cn('h-8 w-8', collapsed ? 'mx-auto' : 'mr-3')}>
-              <AvatarImage src={user?.user_metadata?.avatar_url} />
-              <AvatarFallback>{memberData?.name ? getInitials(memberData.name) : 'U'}</AvatarFallback>
+              <AvatarImage src={userData?.user_metadata?.avatar_url} />
+              <AvatarFallback>{userData?.email ? getInitials(userData.email) : 'U'}</AvatarFallback>
             </Avatar>
             {!collapsed && (
               <div className="flex flex-col">
                 <span className="text-sm font-medium text-white">
-                  {memberData?.name || 'Loading...'}
+                  {userData?.user_metadata?.full_name || userData?.email || 'Admin'}
                 </span>
                 <span className="text-xs text-gray-400">
-                  {memberData?.email || user?.email || ''}
+                  {userData?.email || ''}
                 </span>
               </div>
             )}

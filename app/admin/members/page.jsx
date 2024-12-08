@@ -139,9 +139,9 @@ export default function MembersPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Members</h1>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogTrigger asChild>
+          {/* <DialogTrigger asChild>
             <Button onClick={openCreateDialog}>Add Member</Button>
-          </DialogTrigger>
+          </DialogTrigger> */}
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{selectedMember ? 'Edit Member' : 'Add New Member'}</DialogTitle>
